@@ -7,14 +7,10 @@ pub struct NumString {
 }
 
 impl NumString {
-    pub fn new<T: Into<String>>(digits: T, base: u8) -> Self {
-        let digits: Vec<char> = digits.into().to_lowercase().chars().collect();
-        let number = digits
-            .iter()
-            .map(|digit| Self::digit_to_number(*digit, base))
-            .collect::<Result<Vec<u8>, ()>>()
-            .map(|numbers| Self::compute_number(numbers, base));
-
+    pub fn new<T: Into<String>>(input: T, base: u8) -> Self {
+        let digits = Self::input_to_digits(input);
+        let numbers = Self::digits_to_numbers(&digits, base);
+        let number = numbers.map(|ns| Self::numbers_to_number(&ns, base));
         Self {
             digits: digits,
             base: base,
@@ -25,22 +21,17 @@ impl NumString {
     pub fn convert(&self, base: u8) -> Result<String, ()> {
         let mut number = self.number?;
         let base = base as u64;
-        let mut numbers: Vec<u8> = Vec::new();
+        let mut numbers = Vec::new();
         let mut done = false;
 
         while !done {
-            let digit = (number % base) as u8;
-            numbers.push(digit);
+            numbers.push((number % base) as u8);
             number = number / base;
             if number <= 0 {
                 done = true;
             }
         }
-        numbers
-            .iter()
-            .map(|n| Self::number_to_digit(*n))
-            .collect::<Result<Vec<char>, ()>>()
-            .map(|digits| digits.iter().rev().collect())
+        Self::numbers_to_digits(&numbers.into_iter().rev().collect())
     }
 
 
@@ -52,15 +43,29 @@ impl NumString {
         self.number
     }
 
-    fn compute_number(numbers: Vec<u8>, base: u8) -> u64 {
-        let mut number = 0;
+    fn input_to_digits<T: Into<String>>(input: T) -> Vec<char> {
+        input.into().to_lowercase().chars().collect()
+    }
+
+    fn digits_to_numbers(digits: &Vec<char>, base: u8) -> Result<Vec<u8>, ()> {
+        digits
+            .iter()
+            .map(|digit| Self::digit_to_number(*digit, base))
+            .collect()
+    }
+
+    fn numbers_to_number(numbers: &Vec<u8>, base: u8) -> u64 {
+        let mut res = 0;
         let base = base as u64;
 
-        for digit in numbers {
-            let digit = digit as u64;
-            number = number * base + digit
+        for number in numbers {
+            res = res * base + (*number as u64)
         }
-        number
+        res
+    }
+
+    fn numbers_to_digits(numbers: &Vec<u8>) -> Result<String, ()> {
+        numbers.iter().map(|n| Self::number_to_digit(*n)).collect()
     }
 
     fn digit_to_number(digit: char, base: u8) -> Result<u8, ()> {
