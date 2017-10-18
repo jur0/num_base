@@ -1,9 +1,53 @@
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Error {
+    kind: ErrorKind,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ErrorKind {
+    InvalidDigit(char),
+    InvalidDigitBase(char, u8),
+}
+
+impl From<ErrorKind> for Error {
+    fn from(e: ErrorKind) -> Self {
+        Error { kind: e }
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+        match self.kind {
+            ErrorKind::InvalidDigit(_digit) => "invalid digit",
+            ErrorKind::InvalidDigitBase(_base, _digit) => "invalid base for digit",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+        None
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.kind {
+            ErrorKind::InvalidDigit(digit) => write!(f, "Invalid base: {}.", digit),
+            ErrorKind::InvalidDigitBase(base, digit) => {
+                write!(f, "Invalid base: {} for digit: {}.", base, digit)
+            }
+        }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct NumString {
     digits: Vec<char>,
     base: u8,
-    number: Result<u64, ()>,
+    number: Result<u64>,
 }
 
 impl NumString {
@@ -18,39 +62,31 @@ impl NumString {
         }
     }
 
-    pub fn convert(&self, base: u8) -> Result<String, ()> {
-        let mut number = self.number?;
-        let base = base as u64;
-        let mut numbers = Vec::new();
-        let mut done = false;
-
-        while !done {
-            numbers.push((number % base) as u8);
-            number = number / base;
-            if number <= 0 {
-                done = true;
-            }
-        }
-        Self::numbers_to_digits(&numbers.into_iter().rev().collect())
+    pub fn convert(&self, base: u8) -> Result<String> {
+        self.number
+            .clone()
+            .map(|n| Self::number_to_numbers(n, base))
+            .map(|ns| {
+                Self::numbers_to_digits(&ns.into_iter().rev().collect())
+            })
     }
-
 
     pub fn is_valid(&self) -> bool {
         self.number.is_ok()
     }
 
-    pub fn number(&self) -> Result<u64, ()> {
-        self.number
+    pub fn number(&self) -> Result<u64> {
+        self.number.clone()
     }
 
     fn input_to_digits<T: Into<String>>(input: T) -> Vec<char> {
         input.into().to_lowercase().chars().collect()
     }
 
-    fn digits_to_numbers(digits: &Vec<char>, base: u8) -> Result<Vec<u8>, ()> {
+    fn digits_to_numbers(digits: &Vec<char>, base: u8) -> Result<Vec<u8>> {
         digits
             .iter()
-            .map(|digit| Self::digit_to_number(*digit, base))
+            .map(|d| Self::digit_to_number(*d, base))
             .collect()
     }
 
@@ -64,11 +100,27 @@ impl NumString {
         res
     }
 
-    fn numbers_to_digits(numbers: &Vec<u8>) -> Result<String, ()> {
+    fn number_to_numbers(number: u64, base: u8) -> Vec<u8> {
+        let mut number = number;
+        let base = base as u64;
+        let mut numbers = Vec::new();
+        let mut done = false;
+
+        while !done {
+            numbers.push((number % base) as u8);
+            number = number / base;
+            if number <= 0 {
+                done = true;
+            }
+        }
+        numbers
+    }
+
+    fn numbers_to_digits(numbers: &Vec<u8>) -> String {
         numbers.iter().map(|n| Self::number_to_digit(*n)).collect()
     }
 
-    fn digit_to_number(digit: char, base: u8) -> Result<u8, ()> {
+    fn digit_to_number(digit: char, base: u8) -> Result<u8> {
         let number = match digit {
             '0' => Some(0),
             '1' => Some(1),
@@ -112,13 +164,13 @@ impl NumString {
             Some(n) => if n < base {
                 Ok(n)
             } else {
-                Err(())
+                Err(ErrorKind::InvalidDigitBase(digit, base).into())
             },
-            None => Err(()),
+            None => Err(ErrorKind::InvalidDigit(digit).into()),
         }
     }
 
-    fn number_to_digit(number: u8) -> Result<char, ()> {
+    fn number_to_digit(number: u8) -> char {
         let digit = match number {
             0 => Some('0'),
             1 => Some('1'),
@@ -158,17 +210,32 @@ impl NumString {
             35 => Some('z'),
             _ => None,
         };
-        digit.ok_or(())
+        digit.unwrap()
     }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use super::*;
+
     #[test]
     fn zero_test() {
-        let x = super::NumString::new("0", 2);
+        let x = NumString::new("0", 2);
         assert_eq!(x.is_valid(), true);
         assert_eq!(x.convert(2), Ok("0".to_string()));
         assert_eq!(x.convert(10), Ok("0".to_string()));
+    }
+
+    #[test]
+    fn invalid_digit_test() {
+        let x = NumString::new("*", 13);
+        assert!(!x.is_valid());
+        assert_eq!(
+            x.convert(16),
+            Err(Error {
+                kind: ErrorKind::InvalidDigit('*'),
+            })
+        );
     }
 }
