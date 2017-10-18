@@ -225,24 +225,94 @@ impl NumString {
 mod tests {
 
     use super::*;
+    use super::ErrorKind::*;
 
-    #[test]
-    fn zero_test() {
-        let x = NumString::new("0", 2);
-        assert_eq!(x.is_valid(), true);
-        assert_eq!(x.convert(2), Ok("0".to_string()));
-        assert_eq!(x.convert(10), Ok("0".to_string()));
+    fn ok(s: &str) -> Result<String> {
+        Ok(String::from(s))
+    }
+
+    fn err(ek: ErrorKind) -> Result<String> {
+        Err(Error { kind: ek })
     }
 
     #[test]
-    fn invalid_digit_test() {
-        let x = NumString::new("*", 13);
-        assert!(!x.is_valid());
-        assert_eq!(
-            x.convert(16),
-            Err(Error {
-                kind: ErrorKind::InvalidDigit('*'),
-            })
-        );
+    fn no_input() {
+        let ns = NumString::new("", 11);
+
+        assert!(ns.is_valid());
+        assert_eq!(ns.convert(10), ok("0"));
+    }
+
+    #[test]
+    fn zero() {
+        let ns = NumString::new("00000", 2);
+
+        assert_eq!(ns.is_valid(), true);
+        assert_eq!(ns.convert(2), ok("0"));
+        assert_eq!(ns.convert(10), ok("0"));
+    }
+
+    #[test]
+    fn invalid_base() {
+        let ns1 = NumString::new("ffff", 37);
+        let ns2 = NumString::new("01234", 0);
+        let ns3 = NumString::new("78321", 1);
+
+        assert_eq!(ns1.convert(16), err(InvalidBase(37)));
+        assert!(!ns1.is_valid());
+
+        assert_eq!(ns2.convert(2), err(InvalidBase(0)));
+        assert!(!ns2.is_valid());
+
+        assert_eq!(ns3.convert(5), err(InvalidBase(1)));
+        assert!(!ns3.is_valid());
+    }
+
+    #[test]
+    fn base_corner_case() {
+        let ns1 = NumString::new("z", 36);
+        let ns2 = NumString::new("0", 2);
+
+        assert_eq!(ns1.convert(10), ok("35"));
+        assert_eq!(ns1.convert(2), ok("100011"));
+        assert_eq!(ns1.convert(8), ok("43"));
+
+        assert_eq!(ns2.convert(10), ok("0"));
+        assert_eq!(ns2.convert(2), ok("0"));
+        assert_eq!(ns2.convert(8), ok("0"));
+    }
+
+    #[test]
+    fn invalid_digit() {
+        let ns = NumString::new("*", 13);
+
+        assert!(!ns.is_valid());
+        assert_eq!(ns.convert(16), err(InvalidDigit('*')));
+    }
+
+    #[test]
+    fn invalid_digit_base() {
+        let ns1 = NumString::new("10101201", 2);
+        let ns2 = NumString::new("xyz", 35);
+
+        assert_eq!(ns1.convert(18), err(InvalidDigitBase('2', 2)));
+        assert!(!ns1.is_valid());
+
+        assert_eq!(ns2.convert(36), err(InvalidDigitBase('z', 35)));
+        assert!(!ns2.is_valid());
+    }
+
+    #[test]
+    fn conversion() {
+        let ns1 = NumString::new("1111", 2);
+        let ns2 = NumString::new("1234567890", 10);
+
+        assert_eq!(ns1.convert(16), ok("f"));
+        assert_eq!(ns1.convert(36), ok("f"));
+        assert_eq!(ns1.convert(8), ok("17"));
+
+        assert_eq!(ns2.convert(2), ok("1001001100101100000001011010010"));
+        assert_eq!(ns2.convert(8), ok("11145401322"));
+        assert_eq!(ns2.convert(36), ok("kf12oi"));
     }
 }
