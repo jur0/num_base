@@ -7,6 +7,7 @@ pub struct Error {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ErrorKind {
+    InvalidBase(u8),
     InvalidDigit(char),
     InvalidDigitBase(char, u8),
 }
@@ -20,6 +21,7 @@ impl From<ErrorKind> for Error {
 impl std::error::Error for Error {
     fn description(&self) -> &str {
         match self.kind {
+            ErrorKind::InvalidBase(_base) => "invalid base",
             ErrorKind::InvalidDigit(_digit) => "invalid digit",
             ErrorKind::InvalidDigitBase(_base, _digit) => "invalid base for digit",
         }
@@ -33,7 +35,8 @@ impl std::error::Error for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
-            ErrorKind::InvalidDigit(digit) => write!(f, "Invalid base: {}.", digit),
+            ErrorKind::InvalidBase(base) => write!(f, "Invalid base: {}.", base),
+            ErrorKind::InvalidDigit(digit) => write!(f, "Invalid digit: {}.", digit),
             ErrorKind::InvalidDigitBase(base, digit) => {
                 write!(f, "Invalid base: {} for digit: {}.", base, digit)
             }
@@ -84,10 +87,14 @@ impl NumString {
     }
 
     fn digits_to_numbers(digits: &Vec<char>, base: u8) -> Result<Vec<u8>> {
-        digits
-            .iter()
-            .map(|d| Self::digit_to_number(*d, base))
-            .collect()
+        if base > 1 && base <= 36 {
+            digits
+                .iter()
+                .map(|d| Self::digit_to_number(*d, base))
+                .collect()
+        } else {
+            Err(ErrorKind::InvalidBase(base).into())
+        }
     }
 
     fn numbers_to_number(numbers: &Vec<u8>, base: u8) -> u64 {
