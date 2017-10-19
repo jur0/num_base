@@ -1,11 +1,11 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Error {
     kind: ErrorKind,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ErrorKind {
     InvalidBase(u8),
     InvalidDigit(char),
@@ -67,7 +67,6 @@ impl NumString {
 
     pub fn convert(&self, base: u8) -> Result<String> {
         self.number
-            .clone()
             .map(|n| Self::number_to_numbers(n, base))
             .map(|ns| {
                 Self::numbers_to_digits(&ns.into_iter().rev().collect())
@@ -79,7 +78,7 @@ impl NumString {
     }
 
     pub fn number(&self) -> Result<u64> {
-        self.number.clone()
+        self.number
     }
 
     fn input_to_digits<T: Into<String>>(input: T) -> Vec<char> {
