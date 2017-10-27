@@ -1,4 +1,5 @@
 use std::fmt;
+use self::ErrorKind::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Error {
@@ -22,10 +23,10 @@ impl From<ErrorKind> for Error {
 impl std::error::Error for Error {
     fn description(&self) -> &str {
         match self.kind {
-            ErrorKind::InvalidBase(_base) => "invalid base",
-            ErrorKind::InvalidDigit(_digit) => "invalid digit",
-            ErrorKind::InvalidDigitBase(_base, _digit) => "invalid base for digit",
-            ErrorKind::NumberOverflow => "number overflow",
+            InvalidBase(_base) => "invalid base",
+            InvalidDigit(_digit) => "invalid digit",
+            InvalidDigitBase(_base, _digit) => "invalid base for digit",
+            NumberOverflow => "number overflow",
         }
     }
 
@@ -37,12 +38,12 @@ impl std::error::Error for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
-            ErrorKind::InvalidBase(base) => write!(f, "Invalid base: {}.", base),
-            ErrorKind::InvalidDigit(digit) => write!(f, "Invalid digit: {}.", digit),
-            ErrorKind::InvalidDigitBase(base, digit) => {
+            InvalidBase(base) => write!(f, "Invalid base: {}.", base),
+            InvalidDigit(digit) => write!(f, "Invalid digit: {}.", digit),
+            InvalidDigitBase(base, digit) => {
                 write!(f, "Invalid base: {} for digit: {}.", base, digit)
             }
-            ErrorKind::NumberOverflow => write!(f, "Number to convert is too big."),
+            NumberOverflow => write!(f, "Number to convert is too big."),
         }
     }
 }
@@ -95,7 +96,7 @@ impl NumString {
                 .map(|d| Self::digit_to_number(*d, base))
                 .collect()
         } else {
-            Err(ErrorKind::InvalidBase(base).into())
+            Err(InvalidBase(base).into())
         }
     }
 
@@ -106,7 +107,7 @@ impl NumString {
         for number in numbers {
             let r: Result<u64> = res.checked_mul(base)
                 .and_then(|x| x.checked_add(*number as u64))
-                .ok_or(ErrorKind::NumberOverflow.into());
+                .ok_or(NumberOverflow.into());
             res = r?
         }
         Ok(res)
@@ -176,9 +177,9 @@ impl NumString {
             Some(n) => if n < base {
                 Ok(n)
             } else {
-                Err(ErrorKind::InvalidDigitBase(digit, base).into())
+                Err(InvalidDigitBase(digit, base).into())
             },
-            None => Err(ErrorKind::InvalidDigit(digit).into()),
+            None => Err(InvalidDigit(digit).into()),
         }
     }
 
