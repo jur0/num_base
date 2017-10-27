@@ -2,7 +2,7 @@ use std::result;
 use error::Error;
 use error::ErrorKind::*;
 
-pub type Result<T> = result::Result<T, Error>;
+type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct NumString {
