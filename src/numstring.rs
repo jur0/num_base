@@ -133,14 +133,13 @@ impl NumString {
             'z' => Some(35),
             _ => None,
         };
-        match number {
-            Some(n) => if n < base {
+        number
+            .ok_or(InvalidDigit(digit).into())
+            .and_then(|n| if n < base {
                 Ok(n)
             } else {
                 Err(InvalidDigitBase(digit, base).into())
-            },
-            None => Err(InvalidDigit(digit).into()),
-        }
+            })
     }
 
     fn number_to_digit(number: u8) -> char {
