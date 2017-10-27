@@ -10,6 +10,7 @@ pub enum ErrorKind {
     InvalidBase(u8),
     InvalidDigit(char),
     InvalidDigitBase(char, u8),
+    NumberOverflow,
 }
 
 impl From<ErrorKind> for Error {
@@ -24,6 +25,7 @@ impl std::error::Error for Error {
             ErrorKind::InvalidBase(_base) => "invalid base",
             ErrorKind::InvalidDigit(_digit) => "invalid digit",
             ErrorKind::InvalidDigitBase(_base, _digit) => "invalid base for digit",
+            ErrorKind::NumberOverflow => "number overflow",
         }
     }
 
@@ -40,6 +42,7 @@ impl std::fmt::Display for Error {
             ErrorKind::InvalidDigitBase(base, digit) => {
                 write!(f, "Invalid base: {} for digit: {}.", base, digit)
             }
+            ErrorKind::NumberOverflow => write!(f, "Number to convert is too big."),
         }
     }
 }
@@ -56,8 +59,8 @@ pub struct NumString {
 impl NumString {
     pub fn new<T: Into<String>>(input: T, base: u8) -> Self {
         let digits = Self::input_to_digits(input);
-        let numbers = Self::digits_to_numbers(&digits, base);
-        let number = numbers.map(|ns| Self::numbers_to_number(&ns, base));
+        let number = Self::digits_to_numbers(&digits, base)
+            .and_then(|ns| Self::numbers_to_number(&ns, base));
         Self {
             digits: digits,
             base: base,
@@ -96,14 +99,17 @@ impl NumString {
         }
     }
 
-    fn numbers_to_number(numbers: &Vec<u8>, base: u8) -> u64 {
-        let mut res = 0;
+    fn numbers_to_number(numbers: &Vec<u8>, base: u8) -> Result<u64> {
+        let mut res: u64 = 0;
         let base = base as u64;
 
         for number in numbers {
-            res = res * base + (*number as u64)
+            let r: Result<u64> = res.checked_mul(base)
+                .and_then(|x| x.checked_add(*number as u64))
+                .ok_or(ErrorKind::NumberOverflow.into());
+            res = r?
         }
-        res
+        Ok(res)
     }
 
     fn number_to_numbers(number: u64, base: u8) -> Vec<u8> {
@@ -225,6 +231,7 @@ mod tests {
 
     use super::*;
     use super::ErrorKind::*;
+    use std::u64;
 
     fn ok(s: &str) -> Result<String> {
         Ok(String::from(s))
@@ -313,5 +320,14 @@ mod tests {
         assert_eq!(ns2.convert(2), ok("1001001100101100000001011010010"));
         assert_eq!(ns2.convert(8), ok("11145401322"));
         assert_eq!(ns2.convert(36), ok("kf12oi"));
+    }
+
+    #[test]
+    fn overflow() {
+        let ns1 = NumString::new(u64::MAX.to_string(), 10);
+        let ns2 = NumString::new("ffffffffffffffffffff", 16);
+
+        assert_eq!(ns1.convert(10), ok(u64::MAX.to_string().as_str()));
+        assert_eq!(ns2.convert(16), err(NumberOverflow));
     }
 }
