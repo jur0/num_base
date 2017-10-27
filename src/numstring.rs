@@ -1,4 +1,5 @@
 use std::result;
+use std::u64;
 use error::Error;
 use error::ErrorKind::*;
 
@@ -37,6 +38,11 @@ impl NumString {
 
     pub fn number(&self) -> Result<u64> {
         self.number
+    }
+
+    pub fn max(base: u8) -> String {
+        let numbers = Self::number_to_numbers(u64::MAX, base);
+        Self::numbers_to_digits(&numbers.into_iter().rev().collect())
     }
 
     fn input_to_digits<T: Into<String>>(input: T) -> Vec<char> {
@@ -284,5 +290,10 @@ mod tests {
 
         assert_eq!(ns1.convert(10), ok(u64::MAX.to_string().as_str()));
         assert_eq!(ns2.convert(16), err(NumberOverflow));
+    }
+
+    #[test]
+    fn max_number() {
+        assert_eq!(u64::MAX.to_string(), NumString::max(10));
     }
 }
