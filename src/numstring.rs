@@ -12,6 +12,9 @@ pub struct NumString {
     number: Result<u64>,
 }
 
+pub const MIN_BASE: u8 = 2;
+pub const MAX_BASE: u8 = 36;
+
 impl NumString {
     pub fn new<T: Into<String>>(input: T, base: u8) -> Self {
         let digits = Self::input_to_digits(input);
@@ -45,19 +48,25 @@ impl NumString {
         Self::numbers_to_digits(&numbers.into_iter().rev().collect())
     }
 
+    fn check_base(base: u8) -> Result<()> {
+        if base >= MIN_BASE && base <= MAX_BASE {
+            Ok(())
+        } else {
+            Err(InvalidBase(base).into())
+        }
+    }
+
     fn input_to_digits<T: Into<String>>(input: T) -> Vec<char> {
         input.into().to_lowercase().chars().collect()
     }
 
     fn digits_to_numbers(digits: &Vec<char>, base: u8) -> Result<Vec<u8>> {
-        if base > 1 && base <= 36 {
-            digits
-                .iter()
-                .map(|d| Self::digit_to_number(*d, base))
-                .collect()
-        } else {
-            Err(InvalidBase(base).into())
-        }
+        let _ = Self::check_base(base)?;
+
+        digits
+            .iter()
+            .map(|d| Self::digit_to_number(*d, base))
+            .collect()
     }
 
     fn numbers_to_number(numbers: &Vec<u8>, base: u8) -> Result<u64> {
